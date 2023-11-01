@@ -29,7 +29,7 @@ class LockApp(MDApp):
 
     def __init__(self, **kwargs):
         super(LockApp, self).__init__(**kwargs)
-        self.serverAddress = ('192.168.178.104', 2222)
+        self.serverAddress = ('xxx.xxx.xxx.xxx', 2222)
         self.UDPClient = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.UDPClient.setblocking(False)
         self.bufferSize = 1024

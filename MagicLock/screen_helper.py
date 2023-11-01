@@ -50,8 +50,9 @@ MDBoxLayout:
             Image:
                 source: 'images/image77.png'
                 pos_hint:{'center_x': 0.5, 'center_y': .9}
-                allow_stretch: True
-                keep_ratio: True
+                # allow_stretch: True
+                # keep_ratio: True
+                fit_mode: "scale-down"
                 size_hint_y: None
                 size_hint_x: None
                 width: self.parent.width * 0.7
@@ -106,7 +107,8 @@ MDBoxLayout:
             # left_action_items: [["coffee", lambda x: app.navigation_draw()]]
             mode: 'end'
             type: 'bottom'
-            icon: "lock-open-variant"
+            # icon: "lock-open-variant"
+            icon: "lock"
             on_action_button: app.lock_cmd()
             md_bg_color: app.theme_cls.primary_color
 

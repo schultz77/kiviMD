@@ -29,7 +29,7 @@ class LockApp(MDApp):
 
     def __init__(self, **kwargs):
         super(LockApp, self).__init__(**kwargs)
-        self.serverAddress = ('xxx.xxx.xxx.xxx', 2222)
+        self.serverAddress = ('192.168.178.104', 2222)
         self.UDPClient = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.UDPClient.setblocking(False)
         self.bufferSize = 1024
@@ -103,13 +103,29 @@ class LockApp(MDApp):
         cmd = 'unlock'
         cmd_encoded = cmd.encode('utf-8')
         self.UDPClient.sendto(cmd_encoded, self.serverAddress)
+
+        try:
+            message, address = self.UDPClient.recvfrom(self.bufferSize)
+        except OSError:
+            pass
+        else:
+            message_decoded = message.decode('utf-8')
+            if message_decoded == "unlocked":
+                self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+                self.screen.ids.BottomAppBar.icon = "lock-open-variant"
+                self.screen.ids.BottomAppBar.title = "unlocked"
+                Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+
+        # to be removed after server implementation
         self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+        self.screen.ids.BottomAppBar.icon = "lock-open-variant"
         self.screen.ids.BottomAppBar.title = "unlocked"
         Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
 
     def icon_color_reset(self, dt):
         self.screen.ids.BottomAppBar.icon_color = self.theme_cls.primary_color
         self.screen.ids.BottomAppBar.title = "released"
+        self.screen.ids.BottomAppBar.icon = "lock"
         Clock.schedule_once(self.clean_toolbar, self.lOCK_RELEASE_TIME)
 
     def clean_toolbar(self, dt):
@@ -134,6 +150,7 @@ class LockApp(MDApp):
 
                 self.screen.ids.tf_temp.text = temperature
                 self.screen.ids.tf_hum.text = humidity
+                break
             cnt += 1
 
 

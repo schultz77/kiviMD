@@ -101,12 +101,13 @@ MDBoxLayout:
 
     MDBottomAppBar:
         MDTopAppBar:
+            id: BottomAppBar
             elevation: 1
             # left_action_items: [["coffee", lambda x: app.navigation_draw()]]
             mode: 'end'
             type: 'bottom'
             icon: "lock-open-variant"
             on_action_button: app.lock_cmd()
-
+            md_bg_color: app.theme_cls.primary_color
 
 """

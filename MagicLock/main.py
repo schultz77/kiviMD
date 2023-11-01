@@ -3,9 +3,6 @@ from kivy.config import Config
 Config.set('graphics', 'width', '400')
 Config.set('graphics', 'height', '900')
 
-from kivy.lang import Builder
-from kivymd.app import MDApp
-
 from kivymd.app import MDApp
 
 import screen_helper
@@ -19,6 +16,8 @@ from kivy.uix.boxlayout import BoxLayout
 
 import ipaddress
 
+from kivy.clock import Clock
+
 
 class Dialog(BoxLayout):
     pass
@@ -30,17 +29,18 @@ class LockApp(MDApp):
 
     def __init__(self, **kwargs):
         super(LockApp, self).__init__(**kwargs)
-        self.serverAddress = ('xxx.xxx.xxx.xxx', 2222)
+        self.serverAddress = ('192.168.178.104', 2222)
         self.UDPClient = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.UDPClient.setblocking(False)
         self.bufferSize = 1024
 
-        self.theme_cls.primary_palette = "Teal"
-        self.theme_cls.primary_hue = '900'
+        self.theme_cls.primary_palette = "Red"
+        self.theme_cls.primary_hue = '700'
         self.theme_cls.material_style = "M2"
         self.theme_cls.theme_style = "Dark"
 
         self.dialog = None
+        self.lOCK_RELEASE_TIME = 6  # seconds
 
     def build(self):
         self.screen = Builder.load_string(screen_helper.screen_helper)
@@ -103,6 +103,17 @@ class LockApp(MDApp):
         cmd = 'unlock'
         cmd_encoded = cmd.encode('utf-8')
         self.UDPClient.sendto(cmd_encoded, self.serverAddress)
+        self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+        self.screen.ids.BottomAppBar.title = "unlocked"
+        Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+
+    def icon_color_reset(self, dt):
+        self.screen.ids.BottomAppBar.icon_color = self.theme_cls.primary_color
+        self.screen.ids.BottomAppBar.title = "released"
+        Clock.schedule_once(self.clean_toolbar, self.lOCK_RELEASE_TIME)
+
+    def clean_toolbar(self, dt):
+        self.screen.ids.BottomAppBar.title = ""
 
     def temp_hum_cmd(self):
         cmd = 'temperature'
@@ -128,4 +139,3 @@ class LockApp(MDApp):
 
 if __name__ == '__main__':
     LockApp().run()
-

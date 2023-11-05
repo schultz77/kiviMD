@@ -1,25 +1,166 @@
-# config
 from kivy.config import Config
-Config.set('kivy', 'keyboard_mode', 'systemanddock')
+
+Config.set('graphics', 'width', '400')
+Config.set('graphics', 'height', '900')
 
 from kivymd.app import MDApp
-from kivymd.uix.screen import Screen
-from kivymd.uix.textfield import MDTextField
-import helpers
+
+import screen_helper
 from kivy.lang import Builder
 
+import socket
 
-class DemoApp(MDApp):
+from kivymd.uix.button import MDFlatButton
+from kivymd.uix.dialog import MDDialog
+from kivy.uix.boxlayout import BoxLayout
+
+import ipaddress
+
+from kivy.clock import Clock
+import time
+
+
+class Dialog(BoxLayout):
+    pass
+
+
+class LockApp(MDApp):
+    # layout_parent = ObjectProperty(None)
+    screen = None
+
+    def __init__(self, **kwargs):
+        super(LockApp, self).__init__(**kwargs)
+        self.serverAddress = ('xxx.xxx.xxx.xxx', 2222)
+        self.UDPClient = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.UDPClient.setblocking(False)
+        self.bufferSize_1 = 1024
+        self.bufferSize_2 = 1024
+
+        self.theme_cls.primary_palette = "Red"
+        self.theme_cls.primary_hue = '700'
+        self.theme_cls.material_style = "M2"
+        self.theme_cls.theme_style = "Dark"
+
+        self.dialog = None
+        self.lOCK_RELEASE_TIME = 6  # seconds
+        self.timeout = 30  # [seconds]
+
     def build(self):
-        self.theme_cls.primary_palette = "Green"
-        screen = Screen()
+        self.screen = Builder.load_string(screen_helper.screen_helper)
+        return self.screen
 
-        # username = MDTextField()
-        # size_hint_x=None, width=200)
+    def set_server(self):
+        if not self.dialog:
+            self.dialog = MDDialog(
+                title="Change Server Address:",
+                type="custom",
+                content_cls=Dialog(),
+                buttons=[
+                    MDFlatButton(
+                        text="CANCEL",
+                        theme_text_color="Custom",
+                        text_color=self.theme_cls.primary_color,
+                        on_release=self.dialog_close
+                    ),
+                    MDFlatButton(
+                        text="OK",
+                        theme_text_color="Custom",
+                        text_color=self.theme_cls.primary_color,
+                        on_release=self.update_server
+                    ),
+                ],
+            )
+        self.dialog.content_cls.ids.sever_address.text = self.serverAddress[0]
+        self.dialog.content_cls.ids.sever_address.hint_text = "Server Address"
+        self.dialog.content_cls.ids.sever_address.text_color_normal = 'red'
+        self.dialog.open()
 
-        username = Builder.load_string(helpers.username_input)
-        screen.add_widget(username)
-        return screen
+    def dialog_close(self, *args):
+        self.dialog.dismiss(force=True)
+
+    def update_server(self, obj):
+
+        if self.is_ipv4(self.dialog.content_cls.ids.sever_address.text):
+            self.serverAddress = list(self.serverAddress)
+            self.serverAddress[0] = self.dialog.content_cls.ids.sever_address.text
+            self.serverAddress = tuple(self.serverAddress)
+            self.dialog_close()
+        else:
+            self.dialog.content_cls.ids.sever_address.hint_text = "wrong format!"
+            self.dialog.content_cls.ids.sever_address.text_color_normal = 'red'
+            self.dialog.content_cls.ids.sever_address.text = self.serverAddress[0]
+
+    @staticmethod
+    def is_ipv4(string):
+        try:
+            ipaddress.IPv4Network(string)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def exit_app():
+        LockApp().stop()
+
+    def lock_cmd(self):
+        cmd = 'unlock'
+        cmd_encoded = cmd.encode('utf-8')
+        self.UDPClient.sendto(cmd_encoded, self.serverAddress)
+
+        timeout_start = time.time()
+        while time.time() < timeout_start + self.timeout:
+            try:
+                cmd_confirmation, address = self.UDPClient.recvfrom(self.bufferSize_1)
+            except OSError:
+                pass
+            else:
+                cmd_decoded = cmd_confirmation.decode('utf-8')
+                # print(cmd_decoded, address)
+                if cmd_decoded == "unlocked":
+                    self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+                    self.screen.ids.BottomAppBar.icon = "lock-open-variant"
+                    self.screen.ids.BottomAppBar.title = "unlocked"
+                    Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+                    break
+
+        # to be removed after server implementation
+        # self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+        # self.screen.ids.BottomAppBar.icon = "lock-open-variant"
+        # self.screen.ids.BottomAppBar.title = "unlocked"
+        # Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+
+    def icon_color_reset(self, dt):
+        self.screen.ids.BottomAppBar.icon_color = self.theme_cls.primary_color
+        self.screen.ids.BottomAppBar.title = "released"
+        self.screen.ids.BottomAppBar.icon = "lock"
+        Clock.schedule_once(self.clean_toolbar, self.lOCK_RELEASE_TIME)
+
+    def clean_toolbar(self, dt):
+        self.screen.ids.BottomAppBar.title = ""
+
+    def temp_hum_cmd(self):
+        cmd = 'temperature'
+        cmd_encoded = cmd.encode('utf-8')
+        self.UDPClient.sendto(cmd_encoded, self.serverAddress)
+
+        timeout_start = time.time()
+        while time.time() < timeout_start + self.timeout:
+            try:
+                message, address = self.UDPClient.recvfrom(self.bufferSize_2)
+            except OSError:
+                pass
+            else:
+                message_decoded = message.decode('utf-8')
+                data = message_decoded.split(',')
+                # print(message_decoded, address)
+                if len(data) == 2:
+                    temperature = data[0] + '°C'
+                    humidity = data[1] + '%'
+
+                    self.screen.ids.tf_temp.text = temperature
+                    self.screen.ids.tf_hum.text = humidity
+                break
 
 
-DemoApp().run()
+if __name__ == '__main__':
+    LockApp().run()

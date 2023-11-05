@@ -17,6 +17,7 @@ from kivy.uix.boxlayout import BoxLayout
 import ipaddress
 
 from kivy.clock import Clock
+import time
 
 
 class Dialog(BoxLayout):
@@ -32,7 +33,8 @@ class LockApp(MDApp):
         self.serverAddress = ('xxx.xxx.xxx.xxx', 2222)
         self.UDPClient = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.UDPClient.setblocking(False)
-        self.bufferSize = 1024
+        self.bufferSize_1 = 1024
+        self.bufferSize_2 = 1024
 
         self.theme_cls.primary_palette = "Red"
         self.theme_cls.primary_hue = '700'
@@ -41,6 +43,7 @@ class LockApp(MDApp):
 
         self.dialog = None
         self.lOCK_RELEASE_TIME = 6  # seconds
+        self.timeout = 30  # [seconds]
 
     def build(self):
         self.screen = Builder.load_string(screen_helper.screen_helper)
@@ -104,23 +107,27 @@ class LockApp(MDApp):
         cmd_encoded = cmd.encode('utf-8')
         self.UDPClient.sendto(cmd_encoded, self.serverAddress)
 
-        try:
-            message, address = self.UDPClient.recvfrom(self.bufferSize)
-        except OSError:
-            pass
-        else:
-            message_decoded = message.decode('utf-8')
-            if message_decoded == "unlocked":
-                self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
-                self.screen.ids.BottomAppBar.icon = "lock-open-variant"
-                self.screen.ids.BottomAppBar.title = "unlocked"
-                Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+        timeout_start = time.time()
+        while time.time() < timeout_start + self.timeout:
+            try:
+                cmd_confirmation, address = self.UDPClient.recvfrom(self.bufferSize_1)
+            except OSError:
+                pass
+            else:
+                cmd_decoded = cmd_confirmation.decode('utf-8')
+                # print(cmd_decoded, address)
+                if cmd_decoded == "unlocked":
+                    self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+                    self.screen.ids.BottomAppBar.icon = "lock-open-variant"
+                    self.screen.ids.BottomAppBar.title = "unlocked"
+                    Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+                    break
 
         # to be removed after server implementation
-        self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
-        self.screen.ids.BottomAppBar.icon = "lock-open-variant"
-        self.screen.ids.BottomAppBar.title = "unlocked"
-        Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
+        # self.screen.ids.BottomAppBar.icon_color = (0, 1, 0, 1)
+        # self.screen.ids.BottomAppBar.icon = "lock-open-variant"
+        # self.screen.ids.BottomAppBar.title = "unlocked"
+        # Clock.schedule_once(self.icon_color_reset, self.lOCK_RELEASE_TIME)
 
     def icon_color_reset(self, dt):
         self.screen.ids.BottomAppBar.icon_color = self.theme_cls.primary_color
@@ -136,22 +143,23 @@ class LockApp(MDApp):
         cmd_encoded = cmd.encode('utf-8')
         self.UDPClient.sendto(cmd_encoded, self.serverAddress)
 
-        cnt = 0
-        while cnt < 10:
+        timeout_start = time.time()
+        while time.time() < timeout_start + self.timeout:
             try:
-                message, address = self.UDPClient.recvfrom(self.bufferSize)
+                message, address = self.UDPClient.recvfrom(self.bufferSize_2)
             except OSError:
                 pass
             else:
                 message_decoded = message.decode('utf-8')
                 data = message_decoded.split(',')
-                temperature = data[0] + '°C'
-                humidity = data[1] + '%'
+                # print(message_decoded, address)
+                if len(data) == 2:
+                    temperature = data[0] + '°C'
+                    humidity = data[1] + '%'
 
-                self.screen.ids.tf_temp.text = temperature
-                self.screen.ids.tf_hum.text = humidity
+                    self.screen.ids.tf_temp.text = temperature
+                    self.screen.ids.tf_hum.text = humidity
                 break
-            cnt += 1
 
 
 if __name__ == '__main__':

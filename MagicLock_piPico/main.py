@@ -1,4 +1,4 @@
-from machine import Pin, I2C, Timer
+from machine import Pin, I2C, Timer, ADC
 from ssd1306 import SSD1306_I2C
 from dht import DHT11
 import time
@@ -85,6 +85,10 @@ dispTimeStart = time.time()
 
 # starting thread for monitoring keypad
 #_thread.start_new_thread(keyPadObj.start,())
+
+vsysChannel = ADC(29)  # Pin 29 corresponds ADC 3
+maxInputVoltage = 3.3
+adcRange = 65535 # 2^16
 
 while True:
     
@@ -246,5 +250,27 @@ while True:
         # machine.deepsleep(30000)
         machine.lightsleep(10000)
         cmdFlag = False
+
+
+    # checking battery voltage level
+    adcReading = vsysChannel.read_u16()
+    adcVoltage = (adcReading * maxInputVoltage) / adcRange
+    vsysVoltage = adcVoltage * 3  # ADC Voltage is divided by 3 after reading
+    # print(vsysVoltage)
+    if vsysVoltage < 3:  # send a message to recharge battery if voltage drops below 3V
+        if dispOffFlag:
+            dsp.poweron()
+            dispOffFlag = False
+        dsp.fill(0)
+        msg = 'low battery!'
+        dsp.text(msg, 0, 25)
+        time.sleep(.5)
+        dsp.fill(0)
+        dsp.text(msg, 0, 25)
+        time.sleep(.5)
         
+
+    
+        
+   
         

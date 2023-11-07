@@ -88,10 +88,10 @@ dispTimeStart = time.time()
 
 while True:
     
-#     if not cmdFlag:
-#         dsp.fill(0)
-#         dsp.text('Server IP:', 0, 0)
-#         dsp.text(ServerIP, 0, 10)
+    if not cmdFlag:
+        dsp.fill(0)
+        dsp.text('Server IP:', 0, 0)
+        dsp.text(ServerIP, 0, 10)
            
     # unlocking using push button -----------------------------
     if myButton.value() == 0:
@@ -121,13 +121,14 @@ while True:
     except OSError:
         pass # No new data. Reuse old data
         # print('pass')
-        cmdFlag = False
+        # cmdFlag = False
     else:
         dispTimeStart = time.time() # restarting timer for switching display off (total: 30s)
         cmd = message.decode("utf-8") # New data has arrived. Use it
         dsp.fill(0)
-        cmdFlag = True                   
+                          
         if cmd == 'unlock':
+            cmdFlag = True 
             msg = 'unlocked'
             ctrlRelais.value(1)
             dsp.text(msg, 0, 0)
@@ -159,6 +160,7 @@ while True:
         dsp.fill(0)
         dsp.text('Enter the code', 0, 0)
         dsp.text('folowed by #', 0, 10)
+        cmdFlag = True 
         
         if mykey == "#": 
             codeCheck = testCode(keyString)
@@ -171,7 +173,7 @@ while True:
                 dsp.fill(0)
                 msg = 'unlocked'
                 ctrlRelais.value(1)
-                cmdFlag = True 
+                # cmdFlag = True 
                 
                 dsp.text(codeCheck, 0, 0)
                 dsp.text(msg, 0, 10)
@@ -211,6 +213,8 @@ while True:
             dsp.text(msg, 0, 0)
             unlock = True
             timeStart = None
+            cmdFlag = False
+            time.sleep(2)
     
     if not dispOffFlag:
         # grabing temperature and humidity values
@@ -241,5 +245,6 @@ while True:
         # time.sleep(10)
         # machine.deepsleep(30000)
         machine.lightsleep(10000)
+        cmdFlag = False
         
         

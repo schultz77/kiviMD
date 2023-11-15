@@ -9,7 +9,10 @@ import network
 from myKeyPad import KeyPad
 import _thread
 
+import vsys
+from utils import secrets
 
+secret = secrets()
 
 wifi = network.WLAN(network.STA_IF) # creating wifi network
 wifi.active(True)
@@ -36,8 +39,12 @@ dsp=SSD1306_I2C(128, 64, i2c) # dimensions 128x64 pixels
 buttonPin = 21
 myButton = Pin(buttonPin, Pin.IN, Pin.PULL_UP)
 
+# configuring inner room LED
+LEDPin = 20
+myLED = Pin(LEDPin, Pin.OUT)
 
-wifi.connect(secret.wifi, secret.passwd)
+
+wifi.connect(secret.hotspot, secret.passwd)
 
 cmdFlag = False
 
@@ -82,13 +89,11 @@ def testCode(code):
 timeStart = None
 dispOffFlag = False
 dispTimeStart = time.time()
+vsysStartTime = time.time()
+vsysVoltage = 4.7  # full charged battery
 
 # starting thread for monitoring keypad
-#_thread.start_new_thread(keyPadObj.start,())
-
-vsysChannel = ADC(29)  # Pin 29 corresponds ADC 3
-maxInputVoltage = 3.3
-adcRange = 65535 # 2^16
+# _thread.start_new_thread(keyPadObj.start,())
 
 while True:
     
@@ -112,6 +117,7 @@ while True:
         if unlock != prevLock:
             msg = 'unlocked'
             ctrlRelais.value(1)
+            myLED.value(1)
             dsp.text(msg, 0, 0)
             time.sleep(1)
             unlock = False
@@ -130,11 +136,15 @@ while True:
         dispTimeStart = time.time() # restarting timer for switching display off (total: 30s)
         cmd = message.decode("utf-8") # New data has arrived. Use it
         dsp.fill(0)
-                          
+        # cmdFlag = True                   
+        
         if cmd == 'unlock':
+            
             cmdFlag = True 
+            
             msg = 'unlocked'
             ctrlRelais.value(1)
+            myLED.value(1)
             dsp.text(msg, 0, 0)
             
             msd_enc = msg.encode('utf-8')
@@ -177,6 +187,7 @@ while True:
                 dsp.fill(0)
                 msg = 'unlocked'
                 ctrlRelais.value(1)
+                myLED.value(1)
                 # cmdFlag = True 
                 
                 dsp.text(codeCheck, 0, 0)
@@ -211,14 +222,17 @@ while True:
         timeElapsed = abs(timeStart - time.time())
         # print(timeElapsed)
         if timeElapsed >= 5:
-            dsp.fill(0)
-            msg = 'released'
-            ctrlRelais.value(0)
-            dsp.text(msg, 0, 0)
+            if cmdFlag:
+                dsp.fill(0)
+                msg = 'released'
+                ctrlRelais.value(0)
+                myLED.value(0)
+                dsp.text(msg, 0, 0)
+                dsp.show()
             unlock = True
             timeStart = None
             cmdFlag = False
-            time.sleep(2)
+            time.sleep(3)
     
     if not dispOffFlag:
         # grabing temperature and humidity values
@@ -248,29 +262,32 @@ while True:
         # print('sleep')
         # time.sleep(10)
         # machine.deepsleep(30000)
-        machine.lightsleep(10000)
+        # machine.lightsleep(10000)
         cmdFlag = False
-
-
-    # checking battery voltage level
-    adcReading = vsysChannel.read_u16()
-    adcVoltage = (adcReading * maxInputVoltage) / adcRange
-    vsysVoltage = adcVoltage * 3  # ADC Voltage is divided by 3 after reading
-    # print(vsysVoltage)
-    if vsysVoltage < 3:  # send a message to recharge battery if voltage drops below 3V
-        if dispOffFlag:
-            dsp.poweron()
-            dispOffFlag = False
-        dsp.fill(0)
-        msg = 'low battery!'
-        dsp.text(msg, 0, 25)
-        time.sleep(.5)
-        dsp.fill(0)
-        dsp.text(msg, 0, 25)
-        time.sleep(.5)
         
-
-    
+#     # checking battery voltage level
+#     vsysTimeElapsed = abs(vsysStartTime - time.time())
+#     if vsysTimeElapsed > 300:  # checking battery voltage level every 5 minutes 
+#         vsysVoltage = vsys.get_vsys()
+#         dsp.text(str(vsysVoltage), 0, 25)
+#         # dsp.show()
+#         # print(vsysVoltage)
+#         vsysStartTime = time.time()
+#     
+#     # print(vsysTimeElapsed)    
+#     # print(vsysVoltage)    
+#     if vsysVoltage < 3.5:  # send a message to recharge battery if voltage drops below 3.8V
+#         if dispOffFlag:
+#             dsp.poweron()
+#             dispOffFlag = False
+#         dsp.fill(0)
+#         msg = 'low battery!'
+#         dsp.text(msg, 0, 25)
+#         dsp.show()
+#         time.sleep(.5)
+#         dsp.fill(0)
+#         dsp.text(msg, 0, 25)
+#         dsp.show()
+#         time.sleep(.5)
         
-   
         
